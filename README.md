@@ -68,9 +68,24 @@ bun run sync full
 
 ## Deployment
 
-`flake.nix` builds both entry points. The NixOS configuration in
+`flake.nix` builds both entry points as standalone executables, pinning the one
+runtime dependency (hono) to its registry tarball so the Nix build never needs
+network access. The NixOS configuration in
 [`arifinoid/nixos`](https://github.com/arifinoid/nixos) runs the API behind
 nginx with TLS and installs the client as a systemd user timer on each machine.
+
+Server layout:
+
+- `https://icm.arifinoid.web.id` proxied to `127.0.0.1:3998`
+- canonical database `/var/lib/icm-sync/icm-sync.db`
+- nightly `VACUUM INTO` dump to `/var/backups/icm-sync`, keeping 14 copies
+- the shared bearer token is the sops key `icm_sync_token`, rendered into
+  `/etc/icm-sync.env` on the server and `~/.config/icm-sync/env` on a client
+
+Client layout: `icm-sync` runs every 10 minutes (systemd user timer) with
+`ICM_SYNC_DEVICE` set to the host name, so `arifinoid` and `wsl-arifinoid`
+appear as separate devices in `/v1/status`. Run `icm-sync full` by hand for an
+initial one-shot sync.
 
 ## Known limitations
 
