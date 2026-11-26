@@ -28,6 +28,10 @@ CREATE TABLE memories (
   summary_hash  TEXT,
   embedding     BLOB
 );
+
+-- Same constraint as the real ICM schema: one topic + summary per database.
+CREATE UNIQUE INDEX idx_memories_topic_hash
+  ON memories(summary_hash) WHERE summary_hash IS NOT NULL;
 `;
 
 export function makeRow(overrides: Partial<MemoryRow> = {}): MemoryRow {

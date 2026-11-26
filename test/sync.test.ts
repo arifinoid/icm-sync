@@ -158,6 +158,32 @@ describe("two device sync", () => {
     expect(h.store.rowCount()).toBe(1);
   });
 
+  test("two devices recording the same memory converge on one row", async () => {
+    const h = setup();
+    // Same topic + summary on both machines, so the same summary_hash, but ICM
+    // gave them different ids. The local schema forbids that pair.
+    const onA = makeRow({ id: "AAAAAAAA", updatedAt: STAMP_A, summary: "shared line", summaryHash: "hash-shared" });
+    const onB = makeRow({ id: "BBBBBBBB", updatedAt: STAMP_B, summary: "shared line", summaryHash: "hash-shared" });
+    const a = h.device("a", [onA]);
+    const b = h.device("b", [onB]);
+
+    await h.sync(a);
+    await h.sync(b);
+    expect(h.store.rowCount()).toBe(2);
+
+    // Neither pull may fail on the unique index, and both devices must agree.
+    await h.sync(a);
+    await h.sync(b);
+
+    expect(h.localRows("a").map((row) => row.id)).toEqual(["BBBBBBBB"]);
+    expect(h.localRows("b").map((row) => row.id)).toEqual(["BBBBBBBB"]);
+
+    // The id only one device kept is reported as deleted by the other, so the
+    // canonical store loses the duplicate too.
+    await h.sync(a);
+    expect(h.store.rowCount()).toBe(1);
+  });
+
   test("skips the round when the local database does not exist yet", async () => {
     const h = setup();
     const config = { ...h.device("a"), dbPath: join(h.dir, "missing.db") };
