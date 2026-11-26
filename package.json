@@ -1,0 +1,20 @@
+{
+  "name": "icm-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Two-way memory sync for ICM (Infinite Context Memory) backed by a small Hono API.",
+  "scripts": {
+    "api": "bun run src/api/index.ts",
+    "sync": "bun run src/sync/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.13.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^5.9.0"
+  }
+}
