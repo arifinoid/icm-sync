@@ -64,6 +64,28 @@ function readRows(db: Database): LocalRow[] {
   return rows;
 }
 
+/**
+ * Keep a single row per `summary_hash`, preferring the newest. The server has no
+ * unique constraint there (it accepts a row from every device), but the local
+ * ICM database does, so a snapshot holding two ids for one hash cannot be
+ * applied as-is. Ties keep the first row, which makes the choice deterministic
+ * for every device because the snapshot is ordered by `updated_ms`.
+ */
+function dedupeBySummaryHash(rows: MemoryRow[]): MemoryRow[] {
+  const winnerByHash = new Map<string, MemoryRow>();
+  for (const row of rows) {
+    if (row.summaryHash === null) continue;
+    const current = winnerByHash.get(row.summaryHash);
+    if (current === undefined || row.updatedAt > current.updatedAt) {
+      winnerByHash.set(row.summaryHash, row);
+    }
+  }
+
+  return rows.filter(
+    (row) => row.summaryHash === null || winnerByHash.get(row.summaryHash) === row,
+  );
+}
+
 export class LocalDb {
   private constructor(private db: Database) {}
 
@@ -97,12 +119,20 @@ export class LocalDb {
    */
   applySnapshot(rows: MemoryRow[]): { applied: number; deleted: number } {
     const upsert = this.db.query(UPSERT_SQL);
+    const dropTwin = this.db.query("DELETE FROM memories WHERE summary_hash = ? AND id <> ?");
     const remoteIds = new Set<string>();
 
     const run = this.db.transaction(() => {
       let applied = 0;
-      for (const row of rows) {
+      for (const row of dedupeBySummaryHash(rows)) {
         remoteIds.add(row.id);
+        // ICM's schema puts a UNIQUE index on summary_hash, so one
+        // topic + summary cannot exist twice in a database. Two devices can
+        // still record that memory independently under different ids; the
+        // snapshot is canonical, so the local twin gives way to it.
+        if (row.summaryHash !== null) {
+          dropTwin.run(row.summaryHash, row.id);
+        }
         const bindings: SQLQueryBindings[] = [
           row.id,
           row.createdAt,

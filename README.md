@@ -36,6 +36,15 @@ timestamp ICM already maintains. Deletes carry the `updated_ms` the device last
 saw, so a stale delete cannot erase a newer edit made elsewhere. Rows are upserted
 into the local database, so ICM's FTS triggers keep the search index correct.
 
+ICM also derives a `summary_hash` from the normalized topic + summary and puts a
+UNIQUE index on it, so one database cannot hold the same memory twice. Two
+devices can still record that memory independently under different ids; the store
+has no such constraint and keeps both. When applying a snapshot the client keeps
+one row per `summary_hash` (the newest, so the choice is the same on every
+device) and drops a local row that reuses the hash under another id. An id the
+device then no longer has is reported as deleted on the next round, which removes
+the duplicate from the store as well.
+
 ## Requirements
 
 - Bun (developed against 1.4.x)
