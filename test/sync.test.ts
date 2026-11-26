@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Store } from "../src/api/store";
 import { createApp } from "../src/api/index";
@@ -155,6 +156,17 @@ describe("two device sync", () => {
     expect(second.updated).toBe(0);
     expect(h.localRows("a")).toHaveLength(1);
     expect(h.store.rowCount()).toBe(1);
+  });
+
+  test("skips the round when the local database does not exist yet", async () => {
+    const h = setup();
+    const config = { ...h.device("a"), dbPath: join(h.dir, "missing.db") };
+
+    const result = await h.sync(config);
+
+    expect(result.pushed).toBe(0);
+    expect(result.serverRows).toBe(0);
+    expect(existsSync(config.dbPath)).toBe(false);
   });
 
   test("a failed push leaves the local database untouched", async () => {

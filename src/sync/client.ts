@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { LocalDb } from "./localdb";
 import { defaultState, loadState, saveState } from "./state";
 import type { DeletedId, MemoryRow, PushResponse, WireRow } from "../shared/types";
@@ -97,6 +98,23 @@ export async function runSync(
   config: SyncConfig,
   fetchImpl: typeof fetch = fetch,
 ): Promise<SyncResult> {
+  // Never create the ICM database: on a machine where icm has not run yet, a
+  // timer run would otherwise leave an empty file for icm to trip over.
+  if (!existsSync(config.dbPath)) {
+    config.log(`no local database at ${config.dbPath}, skipping this round`);
+    return {
+      pushed: 0,
+      inserted: 0,
+      updated: 0,
+      skipped: 0,
+      pushedDeletes: 0,
+      pulled: 0,
+      applied: 0,
+      deleted: 0,
+      serverRows: 0,
+    };
+  }
+
   const state = loadState(config.statePath, config.deviceId);
   const local = LocalDb.open(config.dbPath);
   const localRows = local.rows();
