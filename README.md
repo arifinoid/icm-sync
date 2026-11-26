@@ -87,6 +87,12 @@ Client layout: `icm-sync` runs every 10 minutes (systemd user timer) with
 appear as separate devices in `/v1/status`. Run `icm-sync full` by hand for an
 initial one-shot sync.
 
+The client reads its configuration from `~/.config/icm-sync/env` when the
+variables are not already in the environment (override with
+`ICM_SYNC_ENV_FILE`). The systemd unit passes the same file through
+`EnvironmentFile`, so a manual run and a timer run behave identically; a value
+exported in the shell always wins.
+
 ## Known limitations
 
 - `vec_memories` (sqlite-vec) is not rebuilt by the client: the extension is
