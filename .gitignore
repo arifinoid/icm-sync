@@ -3,3 +3,5 @@ bun.lockb
 *.log
 dist/
 .tmp/
+result
+result-*
